@@ -64,11 +64,17 @@ bool RFM69::initialize(byte freqBand, byte nodeID, byte networkID)
   };
 
   pinMode(_slaveSelectPin, OUTPUT);
-  SPI.setDataMode(SPI_MODE0);
-  SPI.setBitOrder(MSBFIRST);
-  SPI.setClockDivider(SPI_CLOCK_DIV2); //max speed, except on Due which can run at system clock speed
-  SPI.begin();
-  
+#if defined(__LM4F120H5QR__) || defined(__MSP430G2553__) // LaunchPad MSP430G2553 or StellarPad Interrupt Pin 
+  pinMode(RF69_IRQ_PIN,INPUT_PULLUP);
+#endif
+
+
+   SPI.begin();
+   SPI.setDataMode(SPI_MODE0);
+   SPI.setBitOrder(MSBFIRST);
+   SPI.setClockDivider(SPI_CLOCK_DIV2); //max speed, except on Due which can run at system clock speed
+
+ 
   do writeReg(REG_SYNCVALUE1, 0xaa); while (readReg(REG_SYNCVALUE1) != 0xaa);
 	do writeReg(REG_SYNCVALUE1, 0x55); while (readReg(REG_SYNCVALUE1) != 0x55);
   
@@ -82,7 +88,11 @@ bool RFM69::initialize(byte freqBand, byte nodeID, byte networkID)
   setHighPower(_isRFM69HW); //called regardless if it's a RFM69W or RFM69HW
   setMode(RF69_MODE_STANDBY);
 	while ((readReg(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00); // Wait for ModeReady
-  attachInterrupt(0, RFM69::isr0, RISING);
+#if defined(__LM4F120H5QR__) || defined(__MSP430G2553__) // LaunchPad MSP430G2553 or StellarPad INT=PIN
+  attachInterrupt(RF69_IRQ_PIN, RFM69::isr0, RISING);
+#else
+  attachInterrupt(0, RFM69::isr0, RISING);     //Arduino INT=0
+#endif
   
   selfPointer = this;
   _address = nodeID;
@@ -166,7 +176,7 @@ void RFM69::send(byte toAddress, const void* buffer, byte bufferSize, bool reque
 // to increase the chance of getting a packet across, call this function instead of send
 // and it handles all the ACK requesting/retrying for you :)
 // The only twist is that you have to manually listen to ACK requests on the other side and send back the ACKs
-// The reason for the semi-automaton is that the lib is ingterrupt driven and
+// The reason for the semi-automaton is that the lib is interrupt driven and
 // requires user action to read the received data and decide what to do with it
 // replies usually take only 5-8ms at 50kbps@915Mhz
 bool RFM69::sendWithRetry(byte toAddress, const void* buffer, byte bufferSize, byte retries, byte retryWaitTime) {
@@ -289,6 +299,7 @@ void RFM69::receiveBegin() {
 bool RFM69::receiveDone() {
 // ATOMIC_BLOCK(ATOMIC_FORCEON)
 // {
+
   noInterrupts(); //re-enabled in unselect() via setMode() or via receiveBegin()
   if (_mode == RF69_MODE_RX && PAYLOADLEN>0)
   {
@@ -353,14 +364,14 @@ void RFM69::writeReg(byte addr, byte value)
 
 /// Select the transceiver
 void RFM69::select() {
-  noInterrupts();
+  noInterrupts(); //re-enabled in unselect() via setMode() or via receiveBegin()
   digitalWrite(_slaveSelectPin, LOW);
 }
 
 /// UNselect the transceiver chip
 void RFM69::unselect() {
-  digitalWrite(_slaveSelectPin, HIGH);
-  interrupts();
+ digitalWrite(_slaveSelectPin, HIGH);
+  interrupts(); //explicitly re-enable interrupts
 }
 
 // ON  = disable filtering to capture all frames on network

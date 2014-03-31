@@ -10,9 +10,25 @@
 #define RFM69_h
 #include <Arduino.h>            //assumes Arduino IDE v1.0 or greater
 
+#if defined(__LM4F120H5QR__)         // StellarPad SPI2
+
+static const uint8_t SPIModule=2,SS = PA_5;   //,SCK = PB_4,MOSI = PB_7,MISO = PB_6;   //  SPI2 (PA_5 matches MSP LP)
+
+#define interrupts()        pinMode(RF69_IRQ_PIN,INPUT)   //turn off our interrupt instead of global
+#define noInterrupts()      pinMode(RF69_IRQ_PIN,OUTPUT)
+#define RF69_IRQ_PIN          PE_5    // Pin 6 on StellarPad
+
+#elif defined(__MSP430G2553__) // LaunchPad MSP430G2553 specific
+#define RF69_IRQ_PIN          P1_4    // Pin 6
+#define interrupts()       P1IE |= BIT4;     // turn off our interrupt instead of global
+#define noInterrupts()     P1IE &=~BIT4;     // Method used by attachInterrupt()
+#else
+
+#define RF69_IRQ_PIN          2 // INT0 on AVRs should be connected to DIO0 (ex on Atmega328 it's D2)
+#endif
+
 #define MAX_DATA_LEN         61 // to take advantage of the built in AES/CRC we want to limit the frame size to the internal FIFO size (66 bytes - 3 bytes overhead)
 #define SPI_CS               SS // SS is the SPI slave select pin, for instance D10 on atmega328
-#define RF69_IRQ_PIN          2 // INT0 on AVRs should be connected to DIO0 (ex on Atmega328 it's D2)
 #define CSMA_LIMIT          -90 // upper RX signal sensitivity threshold in dBm for carrier sense access
 #define RF69_MODE_SLEEP       0 // XTAL OFF
 #define	RF69_MODE_STANDBY     1 // XTAL ON
@@ -55,7 +71,7 @@ class RFM69 {
     void setAddress(byte addr);
     bool canSend();
     void send(byte toAddress, const void* buffer, byte bufferSize, bool requestACK=false);
-    bool sendWithRetry(byte toAddress, const void* buffer, byte bufferSize, byte retries=2, byte retryWaitTime=30);
+    bool sendWithRetry(byte toAddress, const void* buffer, byte bufferSize, byte retries=2, byte retryWaitTime=15);
     bool receiveDone();
     bool ACKReceived(byte fromNodeID);
     void sendACK(const void* buffer = "", uint8_t bufferSize=0);
@@ -96,3 +112,4 @@ class RFM69 {
 };
 
 #endif
+
