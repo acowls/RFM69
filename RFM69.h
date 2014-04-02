@@ -11,19 +11,17 @@
 #include <Arduino.h>            //assumes Arduino IDE v1.0 or greater
 
 #if defined(__LM4F120H5QR__)         // StellarPad SPI2
-
-static const uint8_t SPIModule=2,SS = PA_5;   //,SCK = PB_4,MOSI = PB_7,MISO = PB_6;   //  SPI2 (PA_5 matches MSP LP)
-
-#define interrupts()        pinMode(RF69_IRQ_PIN,INPUT)   //turn off our interrupt instead of global
-#define noInterrupts()      pinMode(RF69_IRQ_PIN,OUTPUT)
+static const uint8_t SS = PA_5;   //,SCK = PB_4,MOSI = PB_7,MISO = PB_6;   //  SPI2 (PA_5 matches MSP LP)
+#define interrupts()        ROM_IntMasterEnable();  // Stellaris fast enable/disable
+#define noInterrupts()      ROM_IntMasterDisable();
 #define RF69_IRQ_PIN          PE_5    // Pin 6 on StellarPad
 
 #elif defined(__MSP430G2553__) // LaunchPad MSP430G2553 specific
 #define RF69_IRQ_PIN          P1_4    // Pin 6
-#define interrupts()       P1IE |= BIT4;     // turn off our interrupt instead of global
-#define noInterrupts()     P1IE &=~BIT4;     // Method used by attachInterrupt()
-#else
+#define interrupts()          P1IE |= BIT4;     // turn off our interrupt instead of global  !!MUST MATCH IRQ PIN!!
+#define noInterrupts()        P1IE &=~BIT4;     // Method used by attachInterrupt()
 
+#else
 #define RF69_IRQ_PIN          2 // INT0 on AVRs should be connected to DIO0 (ex on Atmega328 it's D2)
 #endif
 

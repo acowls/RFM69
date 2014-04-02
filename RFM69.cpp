@@ -370,7 +370,7 @@ void RFM69::select() {
 
 /// UNselect the transceiver chip
 void RFM69::unselect() {
- digitalWrite(_slaveSelectPin, HIGH);
+  digitalWrite(_slaveSelectPin, HIGH);
   interrupts(); //explicitly re-enable interrupts
 }
 
